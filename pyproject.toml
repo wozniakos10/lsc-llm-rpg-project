@@ -1,0 +1,31 @@
+[project]
+name = "llm-rpg"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "wozniakos10", email = "wozniakos10@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "gradio>=5.30.0",
+    "huggingface-hub>=0.31.4",
+    "langchain>=0.3.25",
+    "langchain-community>=0.3.24",
+    "langchain-huggingface>=0.2.0",
+    "llama-cpp-python>=0.3.9",
+    "load-dotenv>=0.1.0",
+    "notebook>=7.4.2",
+    "pydantic>=2.11.4",
+    "pydantic-settings>=2.9.1",
+    "sounddevice>=0.5.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+]
