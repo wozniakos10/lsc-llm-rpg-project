@@ -7,6 +7,9 @@ load_dotenv(find_dotenv(".env"))
 class Settings(BaseSettings):
     models_path: str
     assets_path: str
+    langfuse_public_key: str
+    langfuse_secret_key: str
+    langfuse_host: str = "http://localhost:3000"  # Local Langfuse instance
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -14,5 +17,4 @@ class Settings(BaseSettings):
     )
 
 
-# This should now work if MODELS_PATH is defined in your .env file
 settings = Settings()

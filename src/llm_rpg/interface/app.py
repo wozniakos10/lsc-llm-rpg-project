@@ -2,16 +2,18 @@ import gradio as gr
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain_community.llms import LlamaCpp
 from langchain.prompts import PromptTemplate
+from langfuse import Langfuse
+from langfuse.callback import CallbackHandler
 from llm_rpg.configs import settings
-from typing import AsyncGenerator
+from typing import Generator
 import os
 import glob
 import queue
 import sounddevice as sd
 from vosk import Model, KaldiRecognizer
-import time
 import sys
 import json
+from json import JSONDecodeError
 
 
 class SpeechRecognizer:
@@ -51,23 +53,30 @@ class SpeechRecognizer:
                 data = self.q.get()
                 if recognizer.AcceptWaveform(data):
                     result = recognizer.Result()
+                    print(result)
                     try:
                         result_json = json.loads(result)
+                        print(result_json)
                         if "text" in result_json and result_json["text"]:
                             self.current_text = result_json["text"]
                             self.recording = False  # Stop when we get final text
-                    except Exception as e:
+                            return self.stop_recording()
+                    except JSONDecodeError as e:
                         print(f"Error parsing recognition result: {e}")
-                time.sleep(0.1)
-
-        return (
-            self.current_text,
-            self.current_text,
-        )  # Return text for both voice_input and msg
+                else:
+                    results = recognizer.PartialResult()
+                    print(results)
+                    try:
+                        results_json = json.loads(results)
+                        self.current_text = results_json["partial"]
+                        yield self.current_text, self.current_text
+                    except JSONDecodeError as e:
+                        print(f"Error parsing recognition result: {e}")
 
     def stop_recording(self):
         """Stop recording audio"""
         self.recording = False
+
         return (
             self.current_text,
             self.current_text,
@@ -79,8 +88,19 @@ class LLMManager:
         self.llm = None
         self.chain = None
         self.streaming_callback = StreamingStdOutCallbackHandler()
+        self.langfuse = Langfuse(
+            public_key=settings.langfuse_public_key,
+            secret_key=settings.langfuse_secret_key,
+            host=settings.langfuse_host,
+        )
+        self.langfuse_callback = CallbackHandler(
+            public_key=settings.langfuse_public_key,
+            secret_key=settings.langfuse_secret_key,
+            host=settings.langfuse_host,
+        )
         self.template = """
         Jesteś asystentem który odpowiada za tworzenie gier rpg. Stwórz opis gry zgodnie z wymaganiem użytkownika.
+        Jezeli uytkownik nie prosi cię o stworzenie gry, to po postaraj się odpowiedzieć na pytanie użytkownika.
         Pytanie: {question}
         """
         self.prompt = PromptTemplate.from_template(self.template)
@@ -94,13 +114,15 @@ class LLMManager:
         """Create LLM instance with selected model"""
         #  Model config
         n_gpu_layers = -1  # -1 for all layers on GPU
-        n_batch = 512
+        n_batch = 8
+        n_ctx = 1000
 
         return LlamaCpp(
             model_path=f"{settings.models_path}/{model_name}",
             n_gpu_layers=n_gpu_layers,
             n_batch=n_batch,
-            callbacks=[self.streaming_callback],
+            n_ctx=n_ctx,
+            callbacks=[self.streaming_callback, self.langfuse_callback],
             verbose=False,
             temperature=0.7,
             max_tokens=2000,
@@ -113,29 +135,30 @@ class LLMManager:
         try:
             self.llm = self.create_llm(model_name)
             self.chain = self.prompt | self.llm
-            return f"Model {model_name} załadowany poprawnie!"
+            return "Model załadowany poprawnie!", model_name
         except Exception as e:
-            return f"Problem z załadowaniem modelu: {str(e)}"
+            return f"Problem z załadowaniem modelu: {str(e)}", None
 
-    async def stream_chat(
+    def stream_chat(
         self, message: str, history: list
-    ) -> AsyncGenerator[tuple[str, list], None]:
+    ) -> Generator[tuple[str, list], None, None]:
         """Stream chat messages and return streaming response"""
         if self.chain is None:
             yield "Najpierw załaduj model!", history
-            return
-
-        history = history or []
 
         # Create a streaming response
         response = ""
-        async for chunk in self.chain.astream({"question": message}):
-            response += chunk
-            yield "", history + [(message, response)]
+        try:
+            for chunk in self.chain.stream({"question": message}):
+                response += chunk
+                yield "", history + [(message, response)]
 
-        # Final update with complete response
-        history.append((message, response))
-        yield "", history
+            # Final update with complete response
+            history.append((message, response))
+            yield "", history
+
+        except Exception as e:
+            yield f"Error: {str(e)}", history
 
 
 # Create instances
@@ -155,6 +178,9 @@ with gr.Blocks(title="LLM RPG Chat", theme=gr.themes.Soft()) as demo:
         )
         load_button = gr.Button("Załaduj model", variant="primary")
         model_status = gr.Textbox(label="Status modelu", interactive=False)
+        current_model_button = gr.Textbox(
+            label="Aktualnie wczytany model", interactive=False
+        )
 
     chatbot = gr.Chatbot(
         height=600,
@@ -164,6 +190,7 @@ with gr.Blocks(title="LLM RPG Chat", theme=gr.themes.Soft()) as demo:
         ),
         bubble_full_width=False,
         show_copy_button=True,
+        # type="messages", using tuples is deprecated, how to adjust it.
     )
     with gr.Row():
         with gr.Column(scale=4):
@@ -187,7 +214,9 @@ with gr.Blocks(title="LLM RPG Chat", theme=gr.themes.Soft()) as demo:
 
     # Connect the load model button
     load_button.click(
-        llm_manager.load_model, inputs=[model_dropdown], outputs=[model_status]
+        llm_manager.load_model,
+        inputs=[model_dropdown],
+        outputs=[model_status, current_model_button],
     )
 
     # Connect the chat interface
@@ -204,5 +233,6 @@ with gr.Blocks(title="LLM RPG Chat", theme=gr.themes.Soft()) as demo:
         outputs=[voice_input, msg],  # Update both voice_input and msg
     )
 
+
 if __name__ == "__main__":
-    demo.queue().launch(share=True)
+    demo.queue().launch(share=False)

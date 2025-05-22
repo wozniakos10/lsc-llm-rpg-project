@@ -13,6 +13,7 @@ dependencies = [
     "langchain>=0.3.25",
     "langchain-community>=0.3.24",
     "langchain-huggingface>=0.2.0",
+    "langfuse>=2.60.5",
     "llama-cpp-python>=0.3.9",
     "load-dotenv>=0.1.0",
     "notebook>=7.4.2",
