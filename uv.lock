@@ -1253,6 +1253,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "sounddevice" },
+    { name = "vosk" },
 ]
 
 [package.dev-dependencies]
@@ -1274,6 +1275,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
     { name = "sounddevice", specifier = ">=0.5.2" },
+    { name = "vosk", specifier = "==0.3.44" },
 ]
 
 [package.metadata.requires-dev]
@@ -2688,6 +2690,12 @@ wheels = [
 ]
 
 [[package]]
+name = "srt"
+version = "3.5.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/b7/4a1bc231e0681ebf339337b0cd05b91dc6a0d701fa852bb812e244b7a030/srt-3.5.3.tar.gz", hash = "sha256:4884315043a4f0740fd1f878ed6caa376ac06d70e135f306a6dc44632eed0cc0", size = 28296 }
+
+[[package]]
 name = "stack-data"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3030,6 +3038,26 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/56/2c/444f465fb2c65f40c3a104fd0c495184c4f2336d65baf398e3c75d72ea94/virtualenv-20.31.2.tar.gz", hash = "sha256:e10c0a9d02835e592521be48b332b6caee6887f332c111aa79a09b9e79efc2af", size = 6076316 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/40/b1c265d4b2b62b58576588510fc4d1fe60a86319c8de99fd8e9fec617d2c/virtualenv-20.31.2-py3-none-any.whl", hash = "sha256:36efd0d9650ee985f0cad72065001e66d49a6f24eb44d98980f630686243cf11", size = 6057982 },
+]
+
+[[package]]
+name = "vosk"
+version = "0.3.44"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cffi" },
+    { name = "requests" },
+    { name = "srt" },
+    { name = "tqdm" },
+    { name = "websockets" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/85/12/d8d3e842c088853632db6432b9b045c7798a477d390a25b4af1a89e5c164/vosk-0.3.44-py3-none-linux_armv7l.whl", hash = "sha256:a0d4a2c384692d721d4cda58aa79aac22edb0c445759e9ca2df61f44a5d2fdda", size = 2387663 },
+    { url = "https://files.pythonhosted.org/packages/44/19/5e8299237bc2005c3d155d3b48adba6fd6484465ad5c970302fc1d37947d/vosk-0.3.44-py3-none-macosx_10_6_universal2.whl", hash = "sha256:029d0b3d6a5cff874c575b8a5814a4cccfb37608cff52e846c02a8c67a882801", size = 4710953 },
+    { url = "https://files.pythonhosted.org/packages/b6/80/7170893ae9d0616a16fa9637fb07f5bc5e5e4d954f280fff7a8f9b72b863/vosk-0.3.44-py3-none-manylinux2014_aarch64.whl", hash = "sha256:9995b7fa5434b134b4bd09897e2490dbc56115c2ad2943c030621e10c7037b34", size = 2368650 },
+    { url = "https://files.pythonhosted.org/packages/26/c7/ed8a6ee755e18708770335a6d38b1e86f4838cdeaa85e92748a4e7431816/vosk-0.3.44-py3-none-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:2652ef213c4c7807dc40af1e7aa578dcccfc4dc4192822a26bc45a9591bcbf76", size = 7173366 },
+    { url = "https://files.pythonhosted.org/packages/71/7c/8850af1556646e7ae10a468ddfc255943bae0760f7e1d4abfac5ca802831/vosk-0.3.44-py3-none-win32.whl", hash = "sha256:93895a51b8bd7b4c780eef05a3d99bf2af03f02fe5f4e4bba3da17bd0fd69138", size = 8594246 },
+    { url = "https://files.pythonhosted.org/packages/73/11/4c967c41f482bb081d1b8c1e578ed5f28ae17939422de313ceb42d2523a4/vosk-0.3.44-py3-none-win_amd64.whl", hash = "sha256:45b1b1136a5cba6066c51da9f852dca7a855744db4ab72b23750c681d36f3202", size = 12191265 },
 ]
 
 [[package]]

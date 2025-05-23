@@ -20,6 +20,7 @@ dependencies = [
     "pydantic>=2.11.4",
     "pydantic-settings>=2.9.1",
     "sounddevice>=0.5.2",
+    "vosk==0.3.44",
 ]
 
 [build-system]
