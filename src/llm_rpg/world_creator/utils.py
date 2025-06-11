@@ -1,0 +1,3 @@
+
+class WrongPromptError(Exception):
+    pass
