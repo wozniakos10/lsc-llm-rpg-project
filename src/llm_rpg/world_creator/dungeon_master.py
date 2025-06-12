@@ -1,6 +1,8 @@
 import llm_rpg.world_creator.stages as stages
 from src.llm_rpg.world_creator.memory import MemoryBank
-from typing import Dict
+from src.llm_rpg.world_creator.utils import MessageReciever
+
+from typing import Dict, Tuple
 
 
 class DungeonMaster():
@@ -9,18 +11,26 @@ class DungeonMaster():
     Creates good prompts for model, as it have little to no memory of what happends.
     '''
     def __init__(self):
-        self.stages_dict: Dict[stages.StageType : stages.Stage] = {
-            stages.StageType.World_building : stages.WorldBuildingStage(),
-            stages.StageType.Creation_of_world : None,
-            stages.StageType.Creation_of_plot : None,
-            stages.StageType.Exploration : None,
-            stages.StageType.Fight : None,
-            stages.StageType.End : None
-
-        }
+        
         self.stage : stages.Stage = None
         self.reset()
-        self.refresh()
+        
+        self.stages_dict: Dict[stages.StageType : stages.Stage] = {
+            stages.StageType.World_building : stages.WorldBuildingStage(self.memory),
+            stages.StageType.Creation_of_world : stages.PlaceCreationStage(self.memory),
+            stages.StageType.Creation_of_plot : stages.PlotCreationStage(self.memory),
+            stages.StageType.Exploration : stages.ExplorationStage(self.memory),
+
+        }
+    
+    def start(self):
+        return self.refresh()
+
+    def track_last_used(func):
+        def wrapper(self, *args, **kwargs):
+            self.last_used = (func, args, kwargs)
+            return func(self, *args, **kwargs)
+        return wrapper
     
 
     def reset(self):
@@ -28,29 +38,40 @@ class DungeonMaster():
         self.stage = None
         self.memory = MemoryBank()
         self.new_stage = stages.StageType.World_building
+        self.last_used = None
 
-    def handle_input(self, user_message) -> str:
-        return self.stage.convert_user_input(user_message)
+    @track_last_used
+    def handle_input(self, user_message) -> Tuple[MessageReciever, Tuple[str, Dict]]:
+        return (MessageReciever.LLM, self.stage.convert_user_input(user_message))
     
-    def update(self, response) -> str:
+    def update(self, response) ->  Tuple[MessageReciever, str]:
         '''
         Updates current stage, memory and adds information to response
 
         Can throw WrongResponseError, when LLM returns something that doesn't match stage's .update() policy
         '''
         self.new_stage, response = self.stage.update(response)
-        return response
+        return (MessageReciever.USER, response)
+    
+    def check_if_refresh(self):
+        return self.stage.stage_type != self.new_stage
+    
+    def refresh(self) -> Tuple[MessageReciever, str | Tuple[str, Dict]]:
+        stage :stages.Stage= self.stages_dict[self.new_stage]
+        self.stage = stage
+        reciever, message = self._refresh(stage)
+        return reciever, message 
+    
+    @track_last_used
+    def _refresh(self, new_stage):
+        return new_stage.start()
 
-    def refresh(self):
-        if self.new_stage != self.stage.stage_type:
-            stage :stages.Stage= self.stages_dict[self.new_stage]
-            reciever, message = stage.start()
-            self.stage = stage
+    def accept(self):
+        self.stage.save_update()
 
-            if reciever == stages.MessageReciever.USER:
-                pass #TODO
-            else:
-                pass
+    def retry(self):
+        func, args, kwargs = self.last_used
+        return func(self, *args, **kwargs)
         
         
         

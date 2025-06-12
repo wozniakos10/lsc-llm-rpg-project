@@ -14,6 +14,7 @@ from vosk import Model, KaldiRecognizer
 import sys
 import json
 from json import JSONDecodeError
+from llm_rpg.world_creator.dungeon_master import DungeonMaster
 
 
 class SpeechRecognizer:
@@ -88,22 +89,29 @@ class LLMManager:
         self.llm = None
         self.chain = None
         self.streaming_callback = StreamingStdOutCallbackHandler()
-        self.langfuse = Langfuse(
-            public_key=settings.langfuse_public_key,
-            secret_key=settings.langfuse_secret_key,
-            host=settings.langfuse_host,
-        )
-        self.langfuse_callback = CallbackHandler(
-            public_key=settings.langfuse_public_key,
-            secret_key=settings.langfuse_secret_key,
-            host=settings.langfuse_host,
-        )
+        # self.langfuse = Langfuse(
+        #     public_key=settings.langfuse_public_key,
+        #     secret_key=settings.langfuse_secret_key,
+        #     host=settings.langfuse_host,
+        # )
+        # self.langfuse_callback = CallbackHandler(
+        #     public_key=settings.langfuse_public_key,
+        #     secret_key=settings.langfuse_secret_key,
+        #     host=settings.langfuse_host,
+        # )
         self.template = """
         Jesteś asystentem który odpowiada za tworzenie gier rpg. Stwórz opis gry zgodnie z wymaganiem użytkownika.
         Jezeli uytkownik nie prosi cię o stworzenie gry, to po postaraj się odpowiedzieć na pytanie użytkownika.
         Pytanie: {question}
         """
+        self.dm = DungeonMaster()
+        # self.dm.start()
         self.prompt = PromptTemplate.from_template(self.template)
+
+    def create_llm_chain(self, prompt: str):
+        template = PromptTemplate.from_template(prompt)
+        return template | self.llm
+    
 
     def get_available_models(self):
         """Get list of available models from the models directory"""
@@ -122,7 +130,7 @@ class LLMManager:
             n_gpu_layers=n_gpu_layers,
             n_batch=n_batch,
             n_ctx=n_ctx,
-            callbacks=[self.streaming_callback, self.langfuse_callback],
+            callbacks=[self.streaming_callback],#, self.langfuse_callback],
             verbose=False,
             temperature=0.7,
             max_tokens=2000,
@@ -140,25 +148,26 @@ class LLMManager:
             return f"Problem z załadowaniem modelu: {str(e)}", None
 
     def stream_chat(
-        self, message: str, history: list
+        self, message: str, history: list, dm_msg
     ) -> Generator[tuple[str, list], None, None]:
         """Stream chat messages and return streaming response"""
         if self.chain is None:
             yield "Najpierw załaduj model!", history
 
-        # Create a streaming response
-        response = ""
-        try:
-            for chunk in self.chain.stream({"question": message}):
-                response += chunk
-                yield "", history + [(message, response)]
+        if dm_msg[0].name == "USER":
+            return dm_msg[1], history
 
-            # Final update with complete response
-            history.append((message, response))
-            yield "", history
+        elif dm_msg[0].name == "LLM":
+            handle_input = self.dm.handle_input(message)
+            chain  = self.create_llm_chain(handle_input[1][0])
+            response = chain.invoke(handle_input[1][1])
+            dm_response = self.dm.update(response)
+            self.dm.accept()
+            self.dm.refresh()
 
-        except Exception as e:
-            yield f"Error: {str(e)}", history
+            return dm_response[1], history
+            
+
 
 
 # Create instances
@@ -219,9 +228,11 @@ with gr.Blocks(title="LLM RPG Chat", theme=gr.themes.Soft()) as demo:
         outputs=[model_status, current_model_button],
     )
 
+
+    dm_msg = llm_manager.dm.start()
     # Connect the chat interface
-    submit.click(llm_manager.stream_chat, [msg, chatbot], [msg, chatbot])
-    msg.submit(llm_manager.stream_chat, [msg, chatbot], [msg, chatbot])
+    submit.click(llm_manager.stream_chat, [msg, chatbot, dm_msg], [msg, chatbot, dm_msg])
+    msg.submit(llm_manager.stream_chat, [msg, chatbot, dm_msg], [msg, chatbot, dm_msg])
 
     # Connect voice recording
     record_button.click(
