@@ -26,6 +26,9 @@ Create .env file which contains:
 MODELS_PATH=PATH
 ASSETS_PATH=PATH
 ```
+`MODELS_PATH` - Path to directory where models are stored. Huggingface should store models as default in `~/.cache/huggingface/hub`. Bellow there is example of using hugginface-cli with parameter `--local-dir models` so it will download selected model to `models` path and this path should be passed to MODELS_PATH
+
+`ASSETS_PATH` - Path to folder that contains avatars displayed in chat. In repo there is folder assets and it should be passed to this variable.
 
 For downloading a model from hugginface:
 
